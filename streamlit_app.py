@@ -64,7 +64,7 @@ def load_pipeline(model_path=MODEL_PATH, model_file_name=MODEL_FILE_NAME):
 pipeline = load_pipeline()
 
 
-st.title('FactGuard 📰🔍')
+st.title('FactGuard 📰🛡️')
 
 st.write("""On providing the title and body text of a news article, this application can classify it as truthful or fake with a confidence score (in %). Note that the algorithm is not fact-checking the article. It bases the classification entirely on the style of the title and body text of the provided article.""")
 
