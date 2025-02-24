@@ -7,6 +7,8 @@ import nltk
 
 # Download required NLTK resources quietly.
 nltk.download('punkt', quiet=True)
+nltk.download('punkt_tab', quiet=True)
+
 
 # Configure the Streamlit page.
 st.set_page_config(
