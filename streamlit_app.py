@@ -1,4 +1,3 @@
-# Libraries required by the webapp.
 import streamlit as st
 import pickle
 import pandas as pd
@@ -6,89 +5,89 @@ import numpy as np
 import model_helperfunctions
 import nltk
 
-nltk.download('punkt')
+# Download required NLTK resources quietly.
+nltk.download('punkt', quiet=True)
 
-# Sets the page title for the webapp.
+# Configure the Streamlit page.
 st.set_page_config(
-        page_title="FactGuard",
+    page_title="FactGuard",
+    layout="centered"
 )
 
-# Sets the background image for the webapp.
+# Add background image.
 def add_bg_from_url():
     st.markdown(
-         f"""
-         <style>
-         .stApp {{
-             background-image: url("https://images.unsplash.com/photo-1637167473291-9f8caf792ded?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2404&q=95");
-             background-attachment: fixed;
-             background-size: cover
-         }}
-         </style>
-         """,
-         unsafe_allow_html=True
-     )
+        """
+        <style>
+        .stApp {
+            background-image: url("https://images.unsplash.com/photo-1637167473291-9f8caf792ded?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=2404&q=95");
+            background-attachment: fixed;
+            background-size: cover;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
-add_bg_from_url() 
+add_bg_from_url()
 
-# Setting value of constants.
+# Constants.
 MODEL_PATH = './Models/'
 MODEL_FILE_NAME = 'rf_tf-idf_plusguardian_model.sav'
-RANDOM_STATE = 42
 DATA_PATH = './Data/'
 
-# Specifying the local model helper function and the stopwords list.
-gist_file = open(DATA_PATH + "gist_stopwords.txt", "r")
-try:
+# Load expanded stopwords from file using a context manager.
+with open(DATA_PATH + "gist_stopwords.txt", "r") as gist_file:
     content = gist_file.read()
-    expanded_stopwords = content.split(",")
-finally:
-    gist_file.close()
-
-expanded_stopwords.remove('via')
-expanded_stopwords.remove('eu')
-expanded_stopwords.remove('uk')
+expanded_stopwords = content.split(",")
+# Remove undesired stopwords.
+for word in ['via', 'eu', 'uk']:
+    if word in expanded_stopwords:
+        expanded_stopwords.remove(word)
 
 def lowercase_and_only_expanded_stopwords(doc):
-    # Remove stopwords and lowercase tokens.
-    stop_words = expanded_stopwords
-    return [token.lower() for token in doc if token.lower() in stop_words]
+    """
+    Return a list of tokens that are lowercased and exist in the expanded stopwords.
+    """
+    return [token.lower() for token in doc if token.lower() in expanded_stopwords]
 
-# Loads the pipeline.
-@st.cache(allow_output_mutation=True)
+# Load the model pipeline using Streamlit's new caching method.
+@st.cache_resource
 def load_pipeline(model_path=MODEL_PATH, model_file_name=MODEL_FILE_NAME):
-    
-    #Loads the text processing and classifier pipeline.
-    
-    return pickle.load(open(model_path + model_file_name, 'rb'))
+    """Load the pickled text processing and classification pipeline."""
+    with open(model_path + model_file_name, 'rb') as file:
+        pipeline = pickle.load(file)
+    return pipeline
 
 pipeline = load_pipeline()
 
-
+# App title and description.
 st.title('FactGuard 📰🛡️')
+st.write("""
+Provide the title and body text of a news article to classify it as truthful or fake, along with a confidence score.
+*Note:* The classification is based solely on stylistic features and does not perform a fact check.
+""")
 
-st.write("""On providing the title and body text of a news article, this application can classify it as truthful or fake with a confidence score (in %). Note that the algorithm is not fact-checking the article. It bases the classification entirely on the style of the title and body text of the provided article.""")
+# Input for news article title and body.
+news_title = st.text_input('Enter the title of a news article:')
+news_story = st.text_area('Enter the body text of the news article:', height=400)
 
-news_title = st.text_input('Enter the title of a news article below:')
+if news_title and news_story:
+    # Tokenize and normalize the input.
+    tokens = model_helperfunctions.tokenize_and_normalize_title_and_text(news_title, news_story)
+    stop_words_only = lowercase_and_only_expanded_stopwords(tokens)
 
-if news_title:
-    news_story = st.text_area('Enter the body text from a news article below:', height=400)
+    if not stop_words_only:
+        st.error('No stopwords detected in the provided article title or body.')
+    else:
+        # Predict the class (0: fake, 1: truthful).
+        predicted_class = pipeline.predict([tokens])[0]
+        class_text = 'truthful' if predicted_class else 'fake'
 
-    if news_story and news_title:
-        tokens = model_helperfunctions.tokenize_and_normalize_title_and_text(news_title, news_story)
-        stop_words_only = lowercase_and_only_expanded_stopwords(tokens)
-        if len(stop_words_only) == 0:
-            st.write('There were no stopwords detected in your article title and/or body.')
-        else:
-            class_ = pipeline.predict([tokens])
-            if class_ == 0:
-                class_text = 'fake'
-            else:
-                class_text = 'truthful'
+        # Retrieve the probability for the predicted class.
+        probability = round(pipeline.predict_proba([tokens])[0][predicted_class] * 100, 2)
 
-            probability = round(pipeline.predict_proba([tokens])[0][class_][0] * 100, 2)
-            st.subheader('Classification Results')
-            st.write('The given news article is classified as ', class_text, 'with a confidence score of',
-                     probability, '%.')
-            st.write()
-            st.subheader('The article represented only as stopwords:')
-            st.write(' '.join(stop_words_only))
+        st.subheader('Classification Results')
+        st.write(f'The news article is classified as **{class_text}** with a confidence score of **{probability}%**.')
+        st.subheader('Extracted Stopwords from the Article')
+        st.write(' '.join(stop_words_only))
