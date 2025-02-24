@@ -74,6 +74,10 @@ def remove_stopwords(doc):
     return [token for token in doc if token.lower() not in stop_words]
 
 
+def identity_function(x):
+    return x
+
+
 def lowercase_tokens(doc):
     """
     Convert all tokens in the input document to lowercase.
