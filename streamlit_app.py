@@ -9,7 +9,6 @@ import nltk
 nltk.download('punkt', quiet=True)
 nltk.download('punkt_tab', quiet=True)
 
-
 # Configure the Streamlit page.
 st.set_page_config(
     page_title="FactGuard",
@@ -74,22 +73,26 @@ Provide the title and body text of a news article to classify it as truthful or 
 news_title = st.text_input('Enter the title of a news article:')
 news_story = st.text_area('Enter the body text of the news article:', height=400)
 
-if news_title and news_story:
-    # Tokenize and normalize the input.
-    tokens = model_helperfunctions.tokenize_and_normalize_title_and_text(news_title, news_story)
-    stop_words_only = lowercase_and_only_expanded_stopwords(tokens)
+# Process input upon clicking the submit button.
+if st.button('Submit'):
+    if news_title and news_story:
+        # Tokenize and normalize the input.
+        tokens = model_helperfunctions.tokenize_and_normalize_title_and_text(news_title, news_story)
+        stop_words_only = lowercase_and_only_expanded_stopwords(tokens)
 
-    if not stop_words_only:
-        st.error('No stopwords detected in the provided article title or body.')
+        if not stop_words_only:
+            st.error('🚨 Oops! No stopwords detected in your article. Please check your input. 🚨')
+        else:
+            # Predict the class (0: fake, 1: truthful).
+            predicted_class = pipeline.predict([tokens])[0]
+            probability = round(pipeline.predict_proba([tokens])[0][predicted_class] * 100, 2)
+
+            if predicted_class:
+                st.success(f'🌟 Hurray! The Article Passed! 🌟 The news article appears to be **truthful** with a confidence score of **{probability}%**. Stay informed and keep questioning!')
+            else:
+                st.error(f'🚨 Alert: Suspicious Article Detected! 🚨 The news article appears to be **fake** with a confidence score of **{probability}%**. Verify from trusted sources!')
+
+            st.subheader('Extracted Stopwords from the Article')
+            st.write(' '.join(stop_words_only))
     else:
-        # Predict the class (0: fake, 1: truthful).
-        predicted_class = pipeline.predict([tokens])[0]
-        class_text = 'truthful' if predicted_class else 'fake'
-
-        # Retrieve the probability for the predicted class.
-        probability = round(pipeline.predict_proba([tokens])[0][predicted_class] * 100, 2)
-
-        st.subheader('Classification Results')
-        st.write(f'The news article is classified as **{class_text}** with a confidence score of **{probability}%**.')
-        st.subheader('Extracted Stopwords from the Article')
-        st.write(' '.join(stop_words_only))
+        st.error("Please provide both a title and the body text of the article.")
