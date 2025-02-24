@@ -21,7 +21,7 @@ def add_bg_from_url():
         """
         <style>
         .stApp {
-            background-image: url("https://images.unsplash.com/photo-1673526759319-57811d44b600?q=80");
+            background-image: url("https://images.unsplash.com/photo-1656427833582-b276ee575f16?q=80");
             background-attachment: fixed;
             background-size: cover;
         }
